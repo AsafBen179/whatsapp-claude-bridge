@@ -5,7 +5,7 @@ set PM2_HOME=C:\ProgramData\pm2
 set NODE_ENV=production
 set PATH=C:\Program Files\nodejs;%PATH%
 
-cd /d C:\RemoteClaudeCode\_bridge
+cd /d C:\RemoteClaudeCode\whatsapp-claude-bridge
 
 REM Wait for network connectivity
 echo Waiting for network...
@@ -24,7 +24,7 @@ call pm2 resurrect --no-daemon-mode
 REM If no saved processes, start fresh
 if errorlevel 1 (
     echo No saved processes, starting from ecosystem...
-    call pm2 start C:\RemoteClaudeCode\_bridge\ecosystem.config.js
+    call pm2 start C:\RemoteClaudeCode\whatsapp-claude-bridge\ecosystem.config.js
     call pm2 save
 )
 
@@ -43,7 +43,7 @@ echo WhatsApp API is ready.
 
 REM Check WhatsApp connection status and reconnect if needed
 echo Checking WhatsApp connection...
-call C:\RemoteClaudeCode\_bridge\service\check-whatsapp.bat
+call C:\RemoteClaudeCode\whatsapp-claude-bridge\service\check-whatsapp.bat
 
 REM Keep running (PM2 no-daemon mode)
 echo Service started successfully.

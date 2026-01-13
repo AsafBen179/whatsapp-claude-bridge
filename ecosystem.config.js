@@ -32,7 +32,7 @@ module.exports = {
     {
       name: 'whatsapp-claude-bridge',
       script: 'src/index.js',
-      cwd: 'C:\\RemoteClaudeCode\\_bridge',
+      cwd: 'C:\\RemoteClaudeCode\\whatsapp-claude-bridge',
       interpreter: 'C:\\Program Files\\nodejs\\node.exe',
       instances: 1,
       exec_mode: 'fork',
@@ -55,8 +55,8 @@ module.exports = {
       exp_backoff_restart_delay: 100,
       max_memory_restart: '1G',
 
-      error_file: 'C:\\RemoteClaudeCode\\_bridge\\logs\\pm2-error.log',
-      out_file: 'C:\\RemoteClaudeCode\\_bridge\\logs\\pm2-out.log',
+      error_file: 'C:\\RemoteClaudeCode\\whatsapp-claude-bridge\\logs\\pm2-error.log',
+      out_file: 'C:\\RemoteClaudeCode\\whatsapp-claude-bridge\\logs\\pm2-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       merge_logs: true,
       kill_timeout: 5000

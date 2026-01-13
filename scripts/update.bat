@@ -12,7 +12,7 @@ pm2 stop all
 
 echo.
 echo [2/6] Updating Bridge (git pull)...
-cd /d C:\RemoteClaudeCode\_bridge
+cd /d C:\RemoteClaudeCode\whatsapp-claude-bridge
 git pull origin main
 if errorlevel 1 (
     echo [ERROR] Git pull failed for Bridge
@@ -29,7 +29,7 @@ if errorlevel 1 (
 
 echo.
 echo [4/6] Installing Bridge dependencies...
-cd /d C:\RemoteClaudeCode\_bridge
+cd /d C:\RemoteClaudeCode\whatsapp-claude-bridge
 call npm install --production
 
 echo.
@@ -51,6 +51,6 @@ pm2 status
 
 echo.
 echo Checking WhatsApp connection...
-call C:\RemoteClaudeCode\_bridge\service\check-whatsapp.bat
+call C:\RemoteClaudeCode\whatsapp-claude-bridge\service\check-whatsapp.bat
 
 pause

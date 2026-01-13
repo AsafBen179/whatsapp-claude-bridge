@@ -98,10 +98,18 @@ class SessionManager {
   /**
    * Send command to project session
    * Returns the output from Claude
+   * @param {function} progressCallback - Optional callback for progress updates
+   * @param {object} options - Optional settings (mcpConfig, etc.)
    */
-  async sendCommand(projectId, projectName, command) {
+  async sendCommand(projectId, projectName, command, progressCallback = null, options = {}) {
     const sessionId = await this.getOrCreateSession(projectId, projectName);
-    const result = await cmdExecutor.sendCommand(sessionId, command);
+
+    // Register progress callback if provided
+    if (progressCallback) {
+      cmdExecutor.onProgress(sessionId, progressCallback);
+    }
+
+    const result = await cmdExecutor.sendCommand(sessionId, command, options);
     return {
       sessionId,
       ...result

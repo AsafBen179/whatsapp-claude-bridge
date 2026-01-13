@@ -20,7 +20,7 @@ curl -s http://localhost:3001/health 2>nul || echo Bridge not responding
 
 echo.
 echo [WhatsApp Connection]
-call C:\RemoteClaudeCode\_bridge\service\check-whatsapp.bat
+call C:\RemoteClaudeCode\whatsapp-claude-bridge\service\check-whatsapp.bat
 
 echo.
 pause

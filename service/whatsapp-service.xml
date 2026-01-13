@@ -3,8 +3,8 @@
   <name>WhatsApp Claude Service</name>
   <description>WhatsApp API + Claude Bridge - PM2 managed</description>
 
-  <executable>C:\RemoteClaudeCode\_bridge\service\startup.bat</executable>
-  <workingdirectory>C:\RemoteClaudeCode\_bridge</workingdirectory>
+  <executable>C:\RemoteClaudeCode\whatsapp-claude-bridge\service\startup.bat</executable>
+  <workingdirectory>C:\RemoteClaudeCode\whatsapp-claude-bridge</workingdirectory>
 
   <startmode>Automatic</startmode>
   <delayedAutoStart>true</delayedAutoStart>
@@ -21,10 +21,10 @@
     <sizeThreshold>10240</sizeThreshold>
     <keepFiles>5</keepFiles>
   </log>
-  <logpath>C:\RemoteClaudeCode\_bridge\logs</logpath>
+  <logpath>C:\RemoteClaudeCode\whatsapp-claude-bridge\logs</logpath>
 
   <stoptimeout>30sec</stoptimeout>
-  <stopexecutable>C:\RemoteClaudeCode\_bridge\service\shutdown.bat</stopexecutable>
+  <stopexecutable>C:\RemoteClaudeCode\whatsapp-claude-bridge\service\shutdown.bat</stopexecutable>
 
   <onfailure action="restart" delay="15sec"/>
   <resetfailure>1 hour</resetfailure>

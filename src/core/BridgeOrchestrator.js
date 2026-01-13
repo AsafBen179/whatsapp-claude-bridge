@@ -22,6 +22,9 @@ const summarizerService = require('../ai/SummarizerService');
 // Database repositories
 const repositories = require('../db/repositories');
 
+// Playwright MCP config path
+const PLAYWRIGHT_MCP_CONFIG = 'C:\\Users\\asaf1\\.claude\\plugins\\marketplaces\\claude-plugins-official\\external_plugins\\playwright\\.mcp.json';
+
 /**
  * Main orchestrator - coordinates all components
  */
@@ -324,6 +327,73 @@ class BridgeOrchestrator {
   }
 
   /**
+   * Check if command is a screenshot request
+   */
+  isScreenshotCommand(command) {
+    const lower = command.toLowerCase().trim();
+    return lower.startsWith('/screenshot') ||
+           lower.startsWith('screenshot ') ||
+           lower.includes('take screenshot') ||
+           lower.includes('take a screenshot');
+  }
+
+  /**
+   * Extract URL from screenshot command
+   */
+  extractScreenshotUrl(command) {
+    // Match URLs in the command
+    const urlMatch = command.match(/https?:\/\/[^\s]+/i);
+    if (urlMatch) return urlMatch[0];
+
+    // Check for /screenshot <url> pattern
+    const parts = command.split(/\s+/);
+    for (let i = 0; i < parts.length; i++) {
+      if (parts[i].toLowerCase() === '/screenshot' && parts[i + 1]) {
+        return parts[i + 1].startsWith('http') ? parts[i + 1] : `https://${parts[i + 1]}`;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Build screenshot command for Claude with Playwright
+   */
+  buildScreenshotCommand(url, outputPath) {
+    return `Using Playwright browser, navigate to ${url} and take a full page screenshot. Save the screenshot to ${outputPath}. After saving, confirm the screenshot was saved successfully.`;
+  }
+
+  /**
+   * Extract image file paths from Claude's output
+   */
+  extractImagePaths(output) {
+    const paths = [];
+    const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'];
+
+    // Match Windows paths like C:\path\to\image.png
+    const windowsPathRegex = /[A-Z]:\\[^\s\)>\]"']+\.(png|jpg|jpeg|gif|webp|bmp)/gi;
+    const windowsMatches = output.match(windowsPathRegex) || [];
+    paths.push(...windowsMatches);
+
+    // Match Unix paths like /path/to/image.png
+    const unixPathRegex = /\/[^\s\)>\]"']+\.(png|jpg|jpeg|gif|webp|bmp)/gi;
+    const unixMatches = output.match(unixPathRegex) || [];
+    paths.push(...unixMatches);
+
+    // Match markdown image syntax ![alt](path)
+    const markdownRegex = /!\[[^\]]*\]\(([^)]+\.(png|jpg|jpeg|gif|webp|bmp))\)/gi;
+    let match;
+    while ((match = markdownRegex.exec(output)) !== null) {
+      paths.push(match[1]);
+    }
+
+    // Remove duplicates and clean paths
+    const uniquePaths = [...new Set(paths)].map(p => p.replace(/[)"'>]+$/, ''));
+
+    logger.debug('Extracted image paths from output', { count: uniquePaths.length, paths: uniquePaths });
+    return uniquePaths;
+  }
+
+  /**
    * Process next item in project queue
    */
   async processNextInQueue(projectId) {
@@ -349,8 +419,44 @@ class BridgeOrchestrator {
         exists: sessionStatus.exists
       });
 
-      // Send command to Claude - now returns output directly
-      const result = await sessionManager.sendCommand(projectId, projectName, item.command);
+      // Track if task went to background mode
+      let wasBackgroundTask = false;
+
+      // Progress callback - sends updates based on changes or time
+      const progressCallback = async (progressData) => {
+        try {
+          // Track if this became a background task
+          if (progressData.isBackgroundNotification) {
+            wasBackgroundTask = true;
+          }
+          await responseSender.sendToGroup(item.groupId, progressData.message);
+        } catch (err) {
+          logger.debug('Failed to send progress update', { error: err.message });
+        }
+      };
+
+      // Check if this is a screenshot command
+      const isScreenshot = this.isScreenshotCommand(item.command);
+      let commandToSend = item.command;
+      let options = {};
+      let screenshotPath = null;
+
+      if (isScreenshot) {
+        const url = this.extractScreenshotUrl(item.command);
+        if (url) {
+          // Generate screenshot path
+          const timestamp = Date.now();
+          screenshotPath = `C:\\RemoteClaudeCode\\_bridge\\temp\\screenshot_${timestamp}.png`;
+          commandToSend = this.buildScreenshotCommand(url, screenshotPath);
+          options.mcpConfig = PLAYWRIGHT_MCP_CONFIG;
+
+          await responseSender.sendPending(item.groupId, `📸 Taking screenshot of ${url}...`);
+          logger.info('Processing screenshot command', { url, screenshotPath });
+        }
+      }
+
+      // Send command to Claude with progress tracking
+      const result = await sessionManager.sendCommand(projectId, projectName, commandToSend, progressCallback, options);
       logger.info('Command completed', {
         sessionId: result.sessionId,
         success: result.success,
@@ -363,20 +469,93 @@ class BridgeOrchestrator {
       // Get output from result
       const output = result.output || '';
 
-      // Summarize output
+      // Detect any image paths in Claude's output and send them
+      const imagePaths = this.extractImagePaths(output);
+      let imagesSent = 0;
+
+      if (imagePaths.length > 0) {
+        const fs = require('fs').promises;
+        for (const imgPath of imagePaths) {
+          try {
+            await fs.access(imgPath);
+            await imageHandler.sendImageToWhatsApp(item.groupId, imgPath, '📸 Screenshot');
+            logger.info('Image sent to WhatsApp', { imgPath, groupId: item.groupId });
+            imagesSent++;
+          } catch (imgErr) {
+            logger.debug('Image not accessible', { imgPath, error: imgErr.message });
+          }
+        }
+      }
+
+      // Also try explicit screenshot path if it was a screenshot command
+      if (isScreenshot && screenshotPath && result.success && !imagePaths.includes(screenshotPath)) {
+        try {
+          const fs = require('fs').promises;
+          await fs.access(screenshotPath);
+          await imageHandler.sendImageToWhatsApp(item.groupId, screenshotPath, '📸 Screenshot captured');
+          logger.info('Screenshot sent to WhatsApp', { screenshotPath, groupId: item.groupId });
+          imagesSent++;
+        } catch (imgErr) {
+          logger.debug('Screenshot path not accessible', { error: imgErr.message, screenshotPath });
+        }
+      }
+
+      // Calculate execution time
+      const executionTime = item.startedAt
+        ? `${((Date.now() - new Date(item.startedAt).getTime()) / 1000).toFixed(1)}s`
+        : 'N/A';
+
+      // Summarize using OpenRouter AI
       const summary = await summarizerService.summarizeOutput(output, {
         commandText: item.command,
         projectName,
         startTime: item.startedAt
       });
 
-      // Send response
-      await responseSender.sendCommandResult(item.groupId, {
-        success: result.success && !summary.isError,
-        summary: summary.summary,
-        executionTime: summary.executionTime,
-        error: (result.success && !summary.isError) ? null : (result.stderr || summary.summary)
-      });
+      // Send summarized response
+      if (output && output.trim()) {
+        // Build header based on whether this was a background task
+        const statusIcon = result.success ? '✅' : '❌';
+        let header = '';
+
+        if (wasBackgroundTask) {
+          header = `${statusIcon} *Background task completed!*\n⏱️ ${executionTime}\n\n`;
+        }
+
+        // Use the AI-summarized response
+        let formattedResponse;
+        if (summarizerService.isAvailable() && summary.summary) {
+          // Use the formatted summary from AI
+          formattedResponse = summarizerService.formatForWhatsApp(summary, {
+            successPrefix: wasBackgroundTask ? '' : `${statusIcon} `,
+            errorPrefix: wasBackgroundTask ? '' : '❌ '
+          });
+
+          // Add header for background tasks
+          if (wasBackgroundTask) {
+            formattedResponse = header + formattedResponse;
+          }
+        } else {
+          // Fallback: truncate raw output if summarizer unavailable
+          let claudeResponse = output.trim();
+          const MAX_LENGTH = 4000;
+          if (claudeResponse.length > MAX_LENGTH) {
+            claudeResponse = claudeResponse.substring(0, MAX_LENGTH - 100) + '\n\n... _(truncated)_';
+          }
+          formattedResponse = (wasBackgroundTask ? header : `${statusIcon} *Done* (${executionTime})\n\n`) + claudeResponse;
+        }
+
+        await responseSender.sendToGroup(item.groupId, formattedResponse);
+      } else if (imagesSent > 0) {
+        // Only images, short message
+        await responseSender.sendSuccess(item.groupId, `Done! Sent ${imagesSent} image${imagesSent > 1 ? 's' : ''} (${executionTime})`);
+      } else {
+        // No output - send status only
+        const statusMsg = result.success
+          ? `✅ *Done* (${executionTime})\n\nTask completed successfully.`
+          : `❌ *Failed* (${executionTime})\n\n${result.stderr || 'Unknown error'}`;
+        await responseSender.sendToGroup(item.groupId, statusMsg);
+      }
 
       // Mark as completed
       commandQueue.complete(projectId, item.id, summary);
