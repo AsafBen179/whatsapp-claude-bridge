@@ -1,0 +1,31 @@
+<service>
+  <id>WhatsAppClaudeService</id>
+  <name>WhatsApp Claude Service</name>
+  <description>WhatsApp API + Claude Bridge - PM2 managed</description>
+
+  <executable>C:\RemoteClaudeCode\_bridge\service\startup.bat</executable>
+  <workingdirectory>C:\RemoteClaudeCode\_bridge</workingdirectory>
+
+  <startmode>Automatic</startmode>
+  <delayedAutoStart>true</delayedAutoStart>
+
+  <depend>LanmanWorkstation</depend>
+  <depend>Tcpip</depend>
+  <depend>Dnscache</depend>
+
+  <env name="PM2_HOME" value="C:\ProgramData\pm2" />
+  <env name="NODE_ENV" value="production" />
+  <env name="PATH" value="C:\Program Files\nodejs;%PATH%" />
+
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>5</keepFiles>
+  </log>
+  <logpath>C:\RemoteClaudeCode\_bridge\logs</logpath>
+
+  <stoptimeout>30sec</stoptimeout>
+  <stopexecutable>C:\RemoteClaudeCode\_bridge\service\shutdown.bat</stopexecutable>
+
+  <onfailure action="restart" delay="15sec"/>
+  <resetfailure>1 hour</resetfailure>
+</service>
