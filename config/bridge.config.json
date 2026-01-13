@@ -1,0 +1,71 @@
+{
+  "server": {
+    "port": 3001,
+    "host": "127.0.0.1"
+  },
+  "basePath": "C:\\RemoteClaudeCode",
+  "whatsappApi": {
+    "baseUrl": "http://localhost:3000",
+    "apiKey": "${WHATSAPP_API_KEY}",
+    "webhookPath": "/webhook/whatsapp"
+  },
+  "claudeCode": {
+    "executable": "claude",
+    "defaultArgs": [],
+    "sessionTimeout": 3600000,
+    "maxConcurrentSessions": 10,
+    "outputBufferSize": 1048576
+  },
+  "openRouter": {
+    "apiKey": "${OPENROUTER_API_KEY}",
+    "model": "anthropic/claude-3-haiku",
+    "maxTokens": 500,
+    "summaryPrompt": "Summarize this Claude Code output concisely for WhatsApp. Focus on: what was done, key results, any errors. Keep it under 500 chars. Use Hebrew if the input contains Hebrew."
+  },
+  "permissions": {
+    "approvalTimeout": 120,
+    "defaultAutoApproveReads": true,
+    "defaultAutoApproveEdits": true,
+    "readOperationPatterns": [
+      "^(list|show|read|get|find|search|cat|grep|ls|dir|type)\\b",
+      "^what\\s+(is|are)\\b",
+      "^how\\s+(many|much)\\b",
+      "^describe\\b",
+      "^explain\\b",
+      "^/help",
+      "^/status",
+      "^/cost",
+      "^/doctor"
+    ],
+    "writeOperationPatterns": [
+      "^(write|create|edit|modify|delete|remove|update|add|install|npm|pip|git\\s+push)\\b",
+      "^make\\s+changes\\b",
+      "^fix\\b",
+      "^refactor\\b",
+      "^implement\\b"
+    ],
+    "blockedPatterns": [
+      "rm\\s+-rf\\s+[/\\\\]",
+      "format\\s+[a-z]:",
+      "del\\s+/[sq]",
+      "rmdir\\s+/s"
+    ]
+  },
+  "messageFormatting": {
+    "maxMessageLength": 4000,
+    "chunkSeparator": "\n---\n",
+    "errorPrefix": "❌ ",
+    "successPrefix": "✅ ",
+    "pendingPrefix": "⏳ ",
+    "approvalPrefix": "⚠️ "
+  },
+  "queue": {
+    "maxQueueSize": 100,
+    "processingTimeout": 600000
+  },
+  "logging": {
+    "level": "info",
+    "maxSize": "10m",
+    "maxFiles": 5
+  }
+}
